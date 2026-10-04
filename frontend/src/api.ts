@@ -1,6 +1,7 @@
 import type { Plan, TripInput } from './types'
 
-export const API = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000'
+// Strip trailing slashes so "https://host/" and "https://host" both work.
+export const API = ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000').replace(/\/+$/, '')
 
 export async function planTrip(input: TripInput): Promise<Plan> {
   let res: Response

@@ -6,11 +6,20 @@ from rest_framework.response import Response
 
 from . import geo, hos
 
+class PointSerializer(serializers.Serializer):
+    lat = serializers.FloatField(min_value=-90, max_value=90)
+    lon = serializers.FloatField(min_value=-180, max_value=180)
+
+
 class PlanRequest(serializers.Serializer):
     current_location = serializers.CharField(max_length=200)
     pickup_location = serializers.CharField(max_length=200)
     dropoff_location = serializers.CharField(max_length=200)
     cycle_used_hours = serializers.FloatField(min_value=0, max_value=70)
+    # Optional exact coordinates (chosen from the search suggestions); skips geocoding when present.
+    current_point = PointSerializer(required=False, allow_null=True)
+    pickup_point = PointSerializer(required=False, allow_null=True)
+    dropoff_point = PointSerializer(required=False, allow_null=True)
     start_time = serializers.DateTimeField(required=False, input_formats=["iso-8601", "%Y-%m-%dT%H:%M"])
 
 
@@ -47,7 +56,10 @@ def plan(request):
     d = ser.validated_data
 
     try:
-        places = [geo.geocode(d[k].strip()) for k in ("current_location", "pickup_location", "dropoff_location")]
+        places = []
+        for key in ("current", "pickup", "dropoff"):
+            text, pt = d[f"{key}_location"].strip(), d.get(f"{key}_point")
+            places.append((pt["lat"], pt["lon"], text) if pt else geo.geocode(text))
         rt = geo.route([(p[0], p[1]) for p in places])
     except geo.GeoError as e:
         return Response({"error": str(e)}, status=422)

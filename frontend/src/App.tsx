@@ -59,6 +59,17 @@ export default function App() {
     }
   }
 
+  function reset() {
+    run.current++ // cancels any in-flight request and background label lookups
+    setPlan(null)
+    setMeta(EMPTY_META)
+    setLabels({})
+    setError('')
+    setFocus(null)
+    setDay(0)
+    setLoading(false)
+  }
+
   function flyTo(lat: number, lon: number) {
     setFocus({ lat, lon, n: Date.now() })
     mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -86,7 +97,7 @@ export default function App() {
 
       <main className="layout">
         <aside className="side">
-          <TripForm loading={loading} step={STEPS[step]} onSubmit={submit} />
+          <TripForm loading={loading} step={STEPS[step]} onSubmit={submit} onReset={reset} />
           {error && (
             <div className="error" role="alert">
               <b>We couldn&apos;t plan that trip</b>

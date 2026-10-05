@@ -1,7 +1,17 @@
 import { useState } from 'react'
-import type { Meta, TripInput } from '../types'
+import type { Meta, Point, TripInput } from '../types'
+import { LocationInput } from './LocationInput'
 
 const pad = (n: number) => String(n).padStart(2, '0')
+const blankMeta: Meta = { carrier: '', office: '', vehicle: '', shipping: '', driver: '', codriver: '' }
+const blankTrip = (): TripInput => ({
+  current_location: '',
+  pickup_location: '',
+  dropoff_location: '',
+  cycle_used_hours: 0,
+  start_time: defaultStart(),
+})
+
 function defaultStart() {
   const d = new Date()
   d.setDate(d.getDate() + 1)
@@ -12,17 +22,14 @@ interface Props {
   loading: boolean
   step?: string
   onSubmit: (t: TripInput, m: Meta) => void
+  onReset: () => void
 }
 
-export function TripForm({ loading, step, onSubmit }: Props) {
-  const [t, setT] = useState<TripInput>({
-    current_location: '',
-    pickup_location: '',
-    dropoff_location: '',
-    cycle_used_hours: 0,
-    start_time: defaultStart(),
-  })
-  const [m, setM] = useState<Meta>({ carrier: '', office: '', vehicle: '', shipping: '', driver: '', codriver: '' })
+export function TripForm({ loading, step, onSubmit, onReset }: Props) {
+  const [t, setT] = useState<TripInput>(blankTrip)
+  const [m, setM] = useState<Meta>(blankMeta)
+  const setPlace = (k: 'current' | 'pickup' | 'dropoff') => (text: string, point: Point | null) =>
+    setT((prev) => ({ ...prev, [`${k}_location`]: text, [`${k}_point`]: point }))
   const set = (k: keyof TripInput) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setT({ ...t, [k]: k === 'cycle_used_hours' ? Number(e.target.value) : e.target.value })
   const setMeta = (k: keyof Meta) => (e: React.ChangeEvent<HTMLInputElement>) => setM({ ...m, [k]: e.target.value })
@@ -33,6 +40,9 @@ export function TripForm({ loading, step, onSubmit }: Props) {
       current_location: 'Chicago, IL',
       pickup_location: 'Dallas, TX',
       dropoff_location: 'Los Angeles, CA',
+      current_point: null,
+      pickup_point: null,
+      dropoff_point: null,
       cycle_used_hours: 30,
     })
     setM({
@@ -45,6 +55,12 @@ export function TripForm({ loading, step, onSubmit }: Props) {
     })
   }
 
+  const reset = () => {
+    setT(blankTrip())
+    setM(blankMeta)
+    onReset()
+  }
+
   return (
     <form
       className="card form"
@@ -55,23 +71,19 @@ export function TripForm({ loading, step, onSubmit }: Props) {
     >
       <div className="card-head">
         <h2>Trip details</h2>
-        <button type="button" className="link" onClick={example}>
-          Fill example
-        </button>
+        <div className="head-actions">
+          <button type="button" className="link" onClick={example}>
+            Fill example
+          </button>
+          <button type="button" className="link muted" onClick={reset}>
+            Reset
+          </button>
+        </div>
       </div>
 
-      <label>
-        <span><i className="dot s" />Current location</span>
-        <input required value={t.current_location} onChange={set('current_location')} placeholder="City, address or lat,lon" />
-      </label>
-      <label>
-        <span><i className="dot p" />Pickup location</span>
-        <input required value={t.pickup_location} onChange={set('pickup_location')} placeholder="Where the load is picked up" />
-      </label>
-      <label>
-        <span><i className="dot d" />Drop-off location</span>
-        <input required value={t.dropoff_location} onChange={set('dropoff_location')} placeholder="Where the load is delivered" />
-      </label>
+      <LocationInput label="Current location" dot="s" value={t.current_location} onChange={setPlace('current')} placeholder="Start typing a city or address" />
+      <LocationInput label="Pickup location" dot="p" value={t.pickup_location} onChange={setPlace('pickup')} placeholder="Where the load is picked up" />
+      <LocationInput label="Drop-off location" dot="d" value={t.dropoff_location} onChange={setPlace('dropoff')} placeholder="Where the load is delivered" />
 
       <div className="row2">
         <label>

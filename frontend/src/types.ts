@@ -1,11 +1,19 @@
 export type Status = 'OFF' | 'SB' | 'D' | 'ON'
 
+export interface Point {
+  lat: number
+  lon: number
+}
+
 export interface TripInput {
   current_location: string
   pickup_location: string
   dropoff_location: string
   cycle_used_hours: number
   start_time: string
+  current_point?: Point | null
+  pickup_point?: Point | null
+  dropoff_point?: Point | null
 }
 
 export interface Meta {

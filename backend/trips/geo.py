@@ -34,7 +34,7 @@ def geocode(query: str):
     try:
         r = requests.get(
             f"{NOMINATIM}/search",
-            params={"q": query, "format": "jsonv2", "limit": 1, "countrycodes": "us,ca,mx"},
+            params={"q": query, "format": "jsonv2", "limit": 1},
             headers=HEADERS,
             timeout=10,
         )

@@ -11,6 +11,9 @@ interface Props {
   dot: 's' | 'p' | 'd'
   value: string
   placeholder: string
+  error?: string
+  /** true when the value came from a picked suggestion (exact coordinates known) */
+  matched: boolean
   onChange: (text: string, point: Point | null) => void
 }
 
@@ -35,7 +38,7 @@ async function search(q: string, signal: AbortSignal): Promise<Suggestion[]> {
   return out
 }
 
-export function LocationInput({ label, dot, value, placeholder, onChange }: Props) {
+export function LocationInput({ label, dot, value, placeholder, error, matched, onChange }: Props) {
   const id = useId()
   const [items, setItems] = useState<Suggestion[]>([])
   const [open, setOpen] = useState(false)
@@ -44,6 +47,8 @@ export function LocationInput({ label, dot, value, placeholder, onChange }: Prop
   const timer = useRef<number>(0)
   const abort = useRef<AbortController | null>(null)
   const picked = useRef(false)
+  const [typed, setTyped] = useState(false)
+  const [focused, setFocused] = useState(false)
   const wrap = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -58,6 +63,7 @@ export function LocationInput({ label, dot, value, placeholder, onChange }: Prop
 
   function type(text: string) {
     picked.current = false
+    setTyped(true)
     onChange(text, null)
     window.clearTimeout(timer.current)
     abort.current?.abort()
@@ -109,6 +115,7 @@ export function LocationInput({ label, dot, value, placeholder, onChange }: Prop
     }
   }
 
+  const hint = !error && typed && !matched && !focused && !open && value.trim().length >= 2
   return (
     <div className="field loc" ref={wrap}>
       <label htmlFor={id}>
@@ -118,19 +125,34 @@ export function LocationInput({ label, dot, value, placeholder, onChange }: Prop
       <div className="loc-box">
         <input
           id={id}
-          required
           autoComplete="off"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error || hint ? `${id}-msg` : undefined}
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
           value={value}
           placeholder={placeholder}
           onChange={(e) => type(e.target.value)}
-          onFocus={() => items.length > 0 && !picked.current && setOpen(true)}
+          onFocus={() => {
+            setFocused(true)
+            if (items.length > 0 && !picked.current) setOpen(true)
+          }}
+          onBlur={() => setFocused(false)}
           onKeyDown={onKey}
         />
         {busy && <span className="mini-spin" aria-hidden />}
       </div>
+      {error && (
+        <p className="field-error" id={`${id}-msg`} role="alert">
+          {error}
+        </p>
+      )}
+      {hint && (
+        <p className="field-hint" id={`${id}-msg`}>
+          Not picked from the suggestions — we will use the best match. Pick one for an exact place.
+        </p>
+      )}
       {open && (
         <ul className="suggest" role="listbox">
           {items.map((s, i) => (

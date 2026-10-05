@@ -4,13 +4,14 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Plan } from '../types'
 import { KIND_META, hoursLabel, stamp } from '../format'
+import { iconHtml } from '../icons'
 
 function icon(kind: string, big = false) {
   const m = KIND_META[kind]
   const size = big ? 36 : 28
   return L.divIcon({
     className: 'pin',
-    html: `<div style="background:${m.color};width:${size}px;height:${size}px">${m.icon}</div>`,
+    html: `<div style="background:${m.color};width:${size}px;height:${size}px">${iconHtml(m.icon, big ? 18 : 15)}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2],

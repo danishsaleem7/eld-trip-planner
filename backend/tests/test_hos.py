@@ -68,3 +68,14 @@ def test_daily_logs_cover_24h_each_day():
     for d in days:
         assert abs(sum(d["totals"].values()) - 24) < 0.05
         assert d["segments"][0]["start"] == 0 and d["segments"][-1]["end"] == 1440
+
+
+def test_recap_never_exceeds_70_and_resets_after_restart():
+    ev, _ = hos.plan_events([200, 3300], 6 * 60, 30)
+    assert any(e["kind"] == "restart" for e in ev)
+    days = hos.build_daily_logs(ev, 6 * 60, 30, lambda e: "x")
+    for d in days:
+        assert d["recap"]["a_last_8_days"] <= 70.01
+        assert abs(d["recap"]["a_last_8_days"] + d["recap"]["b_available_tomorrow"] - 70) < 0.02 or d["recap"]["b_available_tomorrow"] == 0
+    # the day the restart completes starts counting from zero again
+    assert days[-1]["recap"]["a_last_8_days"] < days[-1]["recap"]["on_duty_today"] + 30

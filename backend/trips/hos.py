@@ -104,6 +104,8 @@ class Planner:
                 self.break_30()
                 continue
             if FUEL_EVERY_MI - self.since_fuel <= EPS:
+                if self.cycle + FUEL_STOP > CYCLE:  # the stop itself would push the cycle past 70 h
+                    self.restart()
                 self.fuel()
                 continue
             if self.window_start is None:
@@ -126,6 +128,8 @@ class Planner:
             self.cycle += chunk
 
     def stop(self, kind, note):
+        if self.cycle + HANDLING > CYCLE:  # keep the 70 h cycle honest: reset before work that would exceed it
+            self.restart()
         if self._window_expired():
             self.rest()
         self.on_duty(HANDLING, kind, note)
@@ -151,14 +155,21 @@ def build_daily_logs(events, start_min, initial_cycle_hours, label_for):
     """Slice events into calendar days (midnight to midnight) and pad with off-duty time."""
     end = events[-1]["end"]
     first_day, last_day = int(start_min // 1440), int((end - EPS) // 1440)
-    days, cum_on, on_by_day = [], initial_cycle_hours, []
+    # Recap (70 hr / 8 day): `cycle` mirrors the planner's own cycle clock, so a completed 34-hour restart
+    # wipes everything before it; `since_restart` holds each day's on-duty hours after the last restart.
+    days, cycle, since_restart = [], float(initial_cycle_hours), []
     for d in range(first_day, last_day + 1):
         lo, hi = d * 1440, (d + 1) * 1440
-        segs, miles = [], 0.0
+        segs, miles, day_post = [], 0.0, 0.0
         for e in events:
             s, f = max(e["start"], lo), min(e["end"], hi)
             if f - s <= EPS:
                 continue
+            if e["status"] in (DRIVING, ON):
+                cycle += (f - s) / 60
+                day_post += (f - s) / 60
+            elif e["kind"] == "restart" and e["end"] <= hi + EPS:
+                cycle, day_post, since_restart = 0.0, 0.0, []
             segs.append(
                 {
                     "status": e["status"],
@@ -187,8 +198,7 @@ def build_daily_logs(events, start_min, initial_cycle_hours, label_for):
         for s in segs:
             totals[s["status"]] += (s["end"] - s["start"]) / 60
         on_hours = totals[DRIVING] + totals[ON]
-        on_by_day.append(on_hours)
-        cum_on += on_hours
+        since_restart.append(day_post)
         days.append(
             {
                 "day_index": d - first_day,
@@ -198,9 +208,9 @@ def build_daily_logs(events, start_min, initial_cycle_hours, label_for):
                 "miles_driving": round(miles, 1),
                 "recap": {
                     "on_duty_today": round(on_hours, 2),
-                    "a_last_8_days": round(cum_on, 2),
-                    "b_available_tomorrow": round(max(0.0, 70 - cum_on), 2),
-                    "c_last_5_days": round(sum(on_by_day[-5:]), 2),
+                    "a_last_8_days": round(cycle, 2),
+                    "b_available_tomorrow": round(max(0.0, 70 - cycle), 2),
+                    "c_last_5_days": round(sum(since_restart[-5:]), 2),
                 },
             }
         )
